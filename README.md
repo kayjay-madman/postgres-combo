@@ -14,16 +14,16 @@ Built using multi-stage Docker build for minimal production footprint with secur
 
 ### Using Pre-built Image (Recommended)
 
-[![Build Status](https://github.com/${{ github.repository }}/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/${{ github.repository }}/actions/workflows/docker-publish.yml)
+[![Build Status](https://github.com/kayjay-madman/postgres-combo/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/kayjay-madman/postgres-combo/actions/workflows/docker-publish.yml)
 
 ```bash
 # Pull from GitHub Container Registry
-docker pull ghcr.io/[your-username]/postgres-combo:latest
+docker pull ghcr.io/kayjay-madman/postgres-combo:latest
 
 # Or use in docker-compose.yml
 services:
   postgres-combo:
-    image: ghcr.io/[your-username]/postgres-combo:latest
+    image: ghcr.io/kayjay-madman/postgres-combo:latest
     # ... rest of configuration
 ```
 
@@ -40,9 +40,9 @@ docker compose up -d
 
 Pre-built multi-platform images are available on GitHub Container Registry:
 
-- `ghcr.io/[your-username]/postgres-combo:latest` - Latest stable build
-- `ghcr.io/[your-username]/postgres-combo:v1.0.0` - Specific version tags
-- `ghcr.io/[your-username]/postgres-combo:main-<sha>` - Development builds
+- `ghcr.io/kayjay-madman/postgres-combo:latest` - Latest stable build
+- `ghcr.io/kayjay-madman/postgres-combo:v1.0.0` - Specific version tags
+- `ghcr.io/kayjay-madman/postgres-combo:main-<sha>` - Development builds
 
 Supported platforms: `linux/amd64`, `linux/arm64`
 
