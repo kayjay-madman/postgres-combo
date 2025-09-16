@@ -1,0 +1,81 @@
+name: Test Docker Build
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image (test only)
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        load: true
+        tags: postgres-combo:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Copy environment file
+      run: cp .env.example .env
+
+    - name: Update test environment
+      run: |
+        echo "POSTGRES_PASSWORD=test_password_123" >> .env
+        echo "CONTAINER_NAME=postgres-combo-test" >> .env
+        echo "POSTGRES_HOST_PORT=5433" >> .env
+
+    - name: Start test container
+      run: |
+        docker run -d \
+          --name postgres-combo-test \
+          -e POSTGRES_PASSWORD=test_password_123 \
+          -e POSTGRES_USER=postgres \
+          -e POSTGRES_DB=postgres \
+          -p 5433:5432 \
+          postgres-combo:test
+
+    - name: Wait for PostgreSQL to be ready
+      run: |
+        timeout 60 bash -c 'until docker exec postgres-combo-test pg_isready -U postgres; do sleep 2; done'
+
+    - name: Test extensions installation
+      run: |
+        docker exec postgres-combo-test psql -U postgres -d postgres -c "SELECT * FROM pg_extension WHERE extname IN ('vector', 'age');"
+
+    - name: Test pgvector functionality
+      run: |
+        docker exec postgres-combo-test psql -U postgres -d postgres -c "SELECT vector_dims('[1,2,3]'::vector);"
+
+    - name: Test Apache AGE functionality
+      run: |
+        docker exec postgres-combo-test psql -U postgres -d postgres -c "SET search_path = ag_catalog, public; SELECT age_version();"
+
+    - name: Run health check
+      run: |
+        docker exec postgres-combo-test /usr/local/bin/healthcheck.sh
+
+    - name: Run custom test suite
+      run: |
+        # Make test.sh executable and run it against the test container
+        chmod +x ./test.sh
+        POSTGRES_HOST_PORT=5433 CONTAINER_NAME=postgres-combo-test ./test.sh
+
+    - name: Check container logs
+      if: failure()
+      run: docker logs postgres-combo-test
+
+    - name: Cleanup
+      if: always()
+      run: |
+        docker stop postgres-combo-test || true
+        docker rm postgres-combo-test || true
