@@ -48,14 +48,9 @@ docker compose exec postgres-combo psql -U postgres -d postgres
 
 ### Required
 - `POSTGRES_PASSWORD` - Database password
-
-### Optional  
 - `POSTGRES_USER` (default: postgres)
 - `POSTGRES_DB` (default: postgres)
-- `CONTAINER_NAME` (default: postgres-combo)
 - `POSTGRES_HOST_PORT` (default: 5432)
-- `MEMORY_LIMIT` (default: 1G)
-- `CPU_LIMIT` (default: 1.0)
 
 ## Extension Usage
 
@@ -113,11 +108,3 @@ SET search_path = ag_catalog, public; SELECT age_version();
 - Connection issues: Check `docker compose ps`
 - Extension issues: Verify with `SELECT * FROM pg_extension;`
 - Performance issues: Run `./test.sh`
-
-## Production Deployment
-
-1. Set strong `POSTGRES_PASSWORD` in `.env`
-2. Adjust resource limits based on workload
-3. Monitor health checks and logs  
-4. Implement backup strategy
-5. Consider connection pooling for high traffic

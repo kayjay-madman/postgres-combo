@@ -1,40 +1,15 @@
 services:
-  postgres-combo:
+  postgres:
     image: ghcr.io/kayjay-madman/postgres-combo:latest
-    container_name: ${CONTAINER_NAME}
-    environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_DB: ${POSTGRES_DB}
+    container_name: postgres
+    env_file: .env
     ports:
-      - "${POSTGRES_HOST_PORT}:5432"
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
-      interval: ${HEALTHCHECK_INTERVAL}
-      timeout: ${HEALTHCHECK_TIMEOUT}
-      retries: ${HEALTHCHECK_RETRIES}
-      start_period: ${HEALTHCHECK_START_PERIOD}
-    deploy:
-      resources:
-        limits:
-          memory: ${MEMORY_LIMIT}
-          cpus: '${CPU_LIMIT}'
-        reservations:
-          memory: ${MEMORY_RESERVATION}
-          cpus: '${CPU_RESERVATION}'
-    security_opt:
-      - no-new-privileges:true
-    tmpfs:
-      - /tmp:noexec,nosuid,size=100m
+      - data:/var/lib/postgresql/data
+    shm_size: 1g
     restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: ${LOG_MAX_SIZE}
-        max-file: "${LOG_MAX_FILES}"
 
 volumes:
-  postgres_data:
+  data:
     driver: local

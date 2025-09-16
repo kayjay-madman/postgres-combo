@@ -51,15 +51,34 @@ RUN chmod +x /usr/local/bin/healthcheck.sh && \
     chown postgres:postgres /docker-entrypoint-initdb.d/init.sql && \
     chown postgres:postgres /usr/local/bin/healthcheck.sh
 
-RUN echo "# Custom PostgreSQL configuration" >> /usr/share/postgresql/postgresql.conf.sample && \
+RUN echo "# Production PostgreSQL configuration for multiple databases" >> /usr/share/postgresql/postgresql.conf.sample && \
     echo "shared_preload_libraries = 'age'" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "# Memory Settings - Optimized for 4GB+ RAM systems" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "shared_buffers = 1GB" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "effective_cache_size = 4GB" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "work_mem = 100MB" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "maintenance_work_mem = 512MB" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "# Connection Settings - Support multiple databases" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "max_connections = 200" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "# Performance Settings" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "checkpoint_completion_target = 0.9" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "wal_buffers = 64MB" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "default_statistics_target = 100" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "random_page_cost = 1.1" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "# Logging" >> /usr/share/postgresql/postgresql.conf.sample && \
     echo "log_statement = 'mod'" >> /usr/share/postgresql/postgresql.conf.sample && \
-    echo "log_min_duration_statement = 1000" >> /usr/share/postgresql/postgresql.conf.sample && \
-    echo "max_connections = 100" >> /usr/share/postgresql/postgresql.conf.sample && \
-    echo "shared_buffers = 256MB" >> /usr/share/postgresql/postgresql.conf.sample
+    echo "log_min_duration_statement = 1000" >> /usr/share/postgresql/postgresql.conf.sample
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD /usr/local/bin/healthcheck.sh
+
+# Runtime Requirements:
+# - Recommended: shm_size=1g for optimal PostgreSQL performance
+# - Container will use all available host resources (no limits by default)
 
 USER postgres
 
