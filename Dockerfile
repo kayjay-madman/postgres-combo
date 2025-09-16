@@ -89,15 +89,15 @@ ENV POSTGRES_DB=postgres \
     PGDATA=/var/lib/postgresql/data
 
 # OCI labels for ghcr.io metadata
-LABEL org.opencontainers.image.title="postgres-combo" \
+LABEL org.opencontainers.image.title="postgres" \
       org.opencontainers.image.description="PostgreSQL 16 with pgvector (v0.5.1) and Apache AGE (v1.5.0) extensions" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.vendor="postgres-combo" \
+      org.opencontainers.image.vendor="kayjay-madman" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.base.name="postgres:16-bookworm" \
-      maintainer="postgres-combo" \
+      maintainer="kayjay-madman" \
       postgres.version="16" \
       pgvector.version="0.5.1" \
       age.version="1.5.0"
