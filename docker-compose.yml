@@ -1,7 +1,6 @@
 services:
   postgres-combo:
-    build: .
-    image: postgres-combo
+    image: ghcr.io/kayjay-madman/postgres-combo:latest
     container_name: ${CONTAINER_NAME}
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
