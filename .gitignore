@@ -3,6 +3,10 @@
 .env.local
 .env.*.local
 
+# Claude IDE settings
+.claude/settings.local.json
+.serena/
+
 # Runtime data
 *.pid
 *.seed
@@ -34,6 +38,15 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# PostgreSQL data
+pgdata/
+postgres-data/
+
+# Backup files
+*.bak
+*.backup
+*.sql.gz
 
 # Temporary files
 *.tmp
