@@ -93,47 +93,103 @@ Supported platforms: `linux/amd64`, `linux/arm64`
 -- Connect to database
 psql -h localhost -U postgres -d postgres
 
--- Create table with vector column
+-- Create table with vector column (using 384 dimensions - common for sentence transformers)
 CREATE TABLE documents (
     id SERIAL PRIMARY KEY,
     content TEXT,
-    embedding vector(1536)
+    embedding vector(384)
 );
 
--- Insert data
+-- Insert sample documents with different embeddings
 INSERT INTO documents (content, embedding) VALUES 
-('Sample document', '[0.1, 0.2, 0.3, ...]');
+('Machine learning is transforming industries', array_fill(0.8, ARRAY[384])::vector),
+('Artificial intelligence and deep learning', array_fill(0.7, ARRAY[384])::vector),
+('Database systems and SQL queries', array_fill(0.2, ARRAY[384])::vector),
+('Web development with JavaScript', array_fill(0.1, ARRAY[384])::vector),
+('Data science and analytics', array_fill(0.6, ARRAY[384])::vector);
 
 -- Create index for similarity search
 CREATE INDEX documents_embedding_idx ON documents 
 USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
--- Find similar documents
-SELECT content, (embedding <=> '[0.1, 0.2, 0.3, ...]'::vector) AS distance
+-- Find documents similar to "AI and machine learning" query
+SELECT content, (embedding <=> array_fill(0.75, ARRAY[384])::vector) AS distance
 FROM documents 
-ORDER BY embedding <=> '[0.1, 0.2, 0.3, ...]'::vector 
-LIMIT 5;
+ORDER BY embedding <=> array_fill(0.75, ARRAY[384])::vector 
+LIMIT 3;
+
+-- Alternative: using a specific vector
+SELECT content, (embedding <-> '[0.8,0.7,0.6]'::vector(3)) AS l2_distance
+FROM (SELECT content, embedding[1:3] as embedding FROM documents) t
+ORDER BY embedding <-> '[0.8,0.7,0.6]'::vector(3)
+LIMIT 3;
 ```
 
 ### Graph Operations (Apache AGE)
 
 ```sql
--- Setup
+-- Setup Apache AGE
 SET search_path = ag_catalog, public;
 SELECT create_graph('company_graph');
 
--- Create nodes and relationships
-SELECT cypher('company_graph', $$
-    CREATE (alice:Person {name: 'Alice', role: 'Developer'})
-    CREATE (company:Company {name: 'TechCorp'})
-    CREATE (alice)-[:WORKS_FOR]->(company)
-$$) as (result agtype);
+-- Create a comprehensive company organizational graph
+SELECT * FROM cypher('company_graph', $
+    CREATE (alice:Person {name: 'Alice', role: 'Developer', years: 3})
+    CREATE (bob:Person {name: 'Bob', role: 'Manager', years: 5})
+    CREATE (carol:Person {name: 'Carol', role: 'Designer', years: 2})
+    CREATE (dave:Person {name: 'Dave', role: 'DevOps', years: 4})
+    CREATE (techcorp:Company {name: 'TechCorp', industry: 'Software'})
+    CREATE (frontend:Team {name: 'Frontend', size: 3})
+    CREATE (backend:Team {name: 'Backend', size: 4})
+    CREATE (alice)-[:WORKS_FOR]->(techcorp)
+    CREATE (bob)-[:WORKS_FOR]->(techcorp)
+    CREATE (carol)-[:WORKS_FOR]->(techcorp)
+    CREATE (dave)-[:WORKS_FOR]->(techcorp)
+    CREATE (bob)-[:MANAGES]->(alice)
+    CREATE (bob)-[:MANAGES]->(carol)
+    CREATE (alice)-[:MEMBER_OF]->(backend)
+    CREATE (carol)-[:MEMBER_OF]->(frontend)
+    CREATE (dave)-[:SUPPORTS]->(frontend)
+    CREATE (dave)-[:SUPPORTS]->(backend)
+$) as (result agtype);
 
--- Query graph
-SELECT * FROM cypher('company_graph', $$
+-- Query: Find all employees and their roles
+SELECT * FROM cypher('company_graph', $
     MATCH (p:Person)-[:WORKS_FOR]->(c:Company)
-    RETURN p.name, c.name
-$$) as (person agtype, company agtype);
+    RETURN p.name, p.role, p.years, c.name
+$) as (person_name agtype, role agtype, experience agtype, company agtype);
+
+-- Query: Find management hierarchy
+SELECT * FROM cypher('company_graph', $
+    MATCH (manager:Person)-[:MANAGES]->(employee:Person)
+    RETURN manager.name, employee.name, employee.role
+$) as (manager agtype, employee agtype, role agtype);
+
+-- Query: Find team compositions
+SELECT * FROM cypher('company_graph', $
+    MATCH (p:Person)-[:MEMBER_OF]->(t:Team)
+    RETURN t.name, collect(p.name) as members
+$) as (team agtype, members agtype);
+
+-- Query: Find people with specific experience (path traversal)
+SELECT * FROM cypher('company_graph', $
+    MATCH (p:Person)-[:WORKS_FOR]->(c:Company)
+    WHERE p.years >= 4
+    RETURN p.name, p.role, p.years
+    ORDER BY p.years DESC
+$) as (name agtype, role agtype, years agtype);
+
+-- Query: Find cross-team support relationships
+SELECT * FROM cypher('company_graph', $
+    MATCH (p:Person)-[:SUPPORTS]->(t:Team)<-[:MEMBER_OF]-(member:Person)
+    RETURN p.name as supporter, t.name as team, collect(member.name) as supported_members
+$) as (supporter agtype, team agtype, members agtype);
+
+-- Advanced: Find shortest path between two people
+SELECT * FROM cypher('company_graph', $
+    MATCH path = shortestPath((alice:Person {name: 'Alice'})-[*]-(dave:Person {name: 'Dave'}))
+    RETURN path
+$) as (connection_path agtype);
 ```
 
 ## Testing
