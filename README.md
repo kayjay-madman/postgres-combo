@@ -133,7 +133,7 @@ SET search_path = ag_catalog, public;
 SELECT create_graph('company_graph');
 
 -- Create a comprehensive company organizational graph
-SELECT * FROM cypher('company_graph', $
+SELECT * FROM cypher('company_graph', $$
     CREATE (alice:Person {name: 'Alice', role: 'Developer', years: 3})
     CREATE (bob:Person {name: 'Bob', role: 'Manager', years: 5})
     CREATE (carol:Person {name: 'Carol', role: 'Designer', years: 2})
@@ -151,45 +151,51 @@ SELECT * FROM cypher('company_graph', $
     CREATE (carol)-[:MEMBER_OF]->(frontend)
     CREATE (dave)-[:SUPPORTS]->(frontend)
     CREATE (dave)-[:SUPPORTS]->(backend)
-$) as (result agtype);
+$$) as (result agtype);
 
 -- Query: Find all employees and their roles
-SELECT * FROM cypher('company_graph', $
+SELECT * FROM cypher('company_graph', $$
     MATCH (p:Person)-[:WORKS_FOR]->(c:Company)
     RETURN p.name, p.role, p.years, c.name
-$) as (person_name agtype, role agtype, experience agtype, company agtype);
+$$) as (person_name agtype, role agtype, experience agtype, company agtype);
 
 -- Query: Find management hierarchy
-SELECT * FROM cypher('company_graph', $
+SELECT * FROM cypher('company_graph', $$
     MATCH (manager:Person)-[:MANAGES]->(employee:Person)
     RETURN manager.name, employee.name, employee.role
-$) as (manager agtype, employee agtype, role agtype);
+$$) as (manager agtype, employee agtype, role agtype);
 
 -- Query: Find team compositions
-SELECT * FROM cypher('company_graph', $
+SELECT * FROM cypher('company_graph', $$
     MATCH (p:Person)-[:MEMBER_OF]->(t:Team)
     RETURN t.name, collect(p.name) as members
-$) as (team agtype, members agtype);
+$$) as (team agtype, members agtype);
 
 -- Query: Find people with specific experience (path traversal)
-SELECT * FROM cypher('company_graph', $
+SELECT * FROM cypher('company_graph', $$
     MATCH (p:Person)-[:WORKS_FOR]->(c:Company)
     WHERE p.years >= 4
     RETURN p.name, p.role, p.years
     ORDER BY p.years DESC
-$) as (name agtype, role agtype, years agtype);
+$$) as (name agtype, role agtype, years agtype);
 
 -- Query: Find cross-team support relationships
-SELECT * FROM cypher('company_graph', $
+SELECT * FROM cypher('company_graph', $$
     MATCH (p:Person)-[:SUPPORTS]->(t:Team)<-[:MEMBER_OF]-(member:Person)
     RETURN p.name as supporter, t.name as team, collect(member.name) as supported_members
-$) as (supporter agtype, team agtype, members agtype);
+$$) as (supporter agtype, team agtype, members agtype);
 
--- Advanced: Find shortest path between two people
-SELECT * FROM cypher('company_graph', $
-    MATCH path = shortestPath((alice:Person {name: 'Alice'})-[*]-(dave:Person {name: 'Dave'}))
+-- Advanced: Find all paths between two people
+SELECT * FROM cypher('company_graph', $$
+    MATCH path = (alice:Person {name: 'Alice'})-[*1..3]-(dave:Person {name: 'Dave'})
     RETURN path
-$) as (connection_path agtype);
+$$) as (connection_path agtype);
+
+-- Alternative: Find specific relationship chains
+SELECT * FROM cypher('company_graph', $$
+    MATCH (alice:Person {name: 'Alice'})-[r1]->(middle)-[r2]->(dave:Person {name: 'Dave'})
+    RETURN alice.name, type(r1), middle, type(r2), dave.name
+$$) as (start_person agtype, rel1_type agtype, middle_node agtype, rel2_type agtype, end_person agtype);
 ```
 
 ## Testing
