@@ -1,0 +1,41 @@
+# Trivy ignore file for postgres-combo project
+# This file contains CVEs that are false positives or acceptable risks
+
+# =============================================================================
+# ACCEPTABLE RISKS - Base Image Dependencies
+# =============================================================================
+
+# CVE-2023-45853 - zlib integer overflow
+# Status: will_not_fix in Debian 12
+# Risk: Low - requires specific conditions to exploit
+# Justification: Debian maintainers have assessed this as low priority
+CVE-2023-45853
+
+# =============================================================================
+# TEMPORARY IGNORES - To be reviewed periodically
+# =============================================================================
+
+# =============================================================================
+# FALSE POSITIVES
+# =============================================================================
+
+# Add any false positives identified during security reviews here
+# Format: CVE-YYYY-NNNNN # Comment explaining why it's a false positive
+
+# =============================================================================
+# DEVELOPMENT ONLY IGNORES
+# =============================================================================
+
+# Uncomment during development if needed, but NEVER in production
+# DS013 # WORKDIR usage - only during development phase
+
+# =============================================================================
+# REVIEW SCHEDULE
+# =============================================================================
+# This file should be reviewed monthly to:
+# 1. Check if ignored CVEs have fixes available
+# 2. Remove CVEs that are no longer applicable
+# 3. Add justification for any new ignores
+# 
+# Last reviewed: 2024-09-16
+# Next review: 2024-10-16

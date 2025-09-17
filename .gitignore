@@ -3,9 +3,11 @@
 .env.local
 .env.*.local
 
-# Claude IDE settings
+# IDE settings
 .claude/settings.local.json
 .serena/
+AGENTS.md
+CLAUDE.md
 
 # Runtime data
 *.pid
@@ -59,3 +61,8 @@ postgres-data/
 # Test coverage
 coverage/
 *.lcov
+
+# Security scanning reports
+security-reports/
+*.sarif
+*.sbom

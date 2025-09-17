@@ -1,33 +1,62 @@
+# Build metadata (populated via versions.mk and Makefile)
+ARG PGVECTOR_VERSION
+ARG PGVECTOR_COMMIT
+ARG AGE_BRANCH
+ARG AGE_VERSION
+ARG AGE_COMMIT
+
 FROM postgres:16-bookworm AS builder
 
-RUN echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/backports.list && \
-    apt-get update && \
+ARG PGVECTOR_VERSION
+ARG PGVECTOR_COMMIT
+ARG AGE_BRANCH
+ARG AGE_COMMIT
+ARG DEBIAN_FRONTEND=noninteractive
+
+ENV DEBIAN_FRONTEND=${DEBIAN_FRONTEND}
+
+# Security: Use HTTPS for repositories and apply security updates
+RUN set -eux; \
+    echo "deb https://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/backports.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates; \
+    apt-get update; \
+    apt-get upgrade -y; \
     apt-get install -y --no-install-recommends \
-        ca-certificates \
         build-essential \
         git \
-        golang-1.22-go \
         flex \
         bison \
         postgresql-server-dev-16 \
         wget \
-        curl && \
+        curl; \
+    apt-get install -y --no-install-recommends -t bookworm-backports golang-1.22-go; \
     rm -rf /var/lib/apt/lists/*
 
 ENV PATH="/usr/lib/go-1.22/bin:$PATH"
 
-RUN git clone --depth 1 --branch v0.5.1 https://github.com/pgvector/pgvector.git /tmp/pgvector && \
+WORKDIR /tmp
+
+# Build pgvector with integrity verification
+RUN test -n "${PGVECTOR_VERSION}" && test -n "${PGVECTOR_COMMIT}" && \
+    git clone --depth 1 --branch "${PGVECTOR_VERSION}" https://github.com/pgvector/pgvector.git pgvector && \
     cd /tmp/pgvector && \
+    git rev-parse HEAD | grep -q "^${PGVECTOR_COMMIT}" || (echo "pgvector commit verification failed" && exit 1)
+RUN cd /tmp/pgvector && \
     make clean && \
     make OPTFLAGS="" && \
-    make install && \
-    rm -rf /tmp/pgvector
+    make install
+RUN rm -rf /tmp/pgvector
 
-RUN git clone --depth 1 --branch release/PG16/1.5.0 https://github.com/apache/age.git /tmp/age && \
+# Build Apache AGE with integrity verification
+RUN test -n "${AGE_BRANCH}" && test -n "${AGE_COMMIT}" && \
+    git clone --depth 1 --branch "${AGE_BRANCH}" https://github.com/apache/age.git age && \
     cd /tmp/age && \
+    git rev-parse HEAD | grep -q "^${AGE_COMMIT}" || (echo "Apache AGE commit verification failed" && exit 1)
+RUN cd /tmp/age && \
     make PG_CONFIG=/usr/bin/pg_config && \
-    make install PG_CONFIG=/usr/bin/pg_config && \
-    rm -rf /tmp/age
+    make install PG_CONFIG=/usr/bin/pg_config
+RUN rm -rf /tmp/age
 
 RUN ls -la /usr/lib/postgresql/16/lib/ | grep -E "(vector|age)" && \
     ls -la /usr/share/postgresql/16/extension/ | grep -E "(vector|age)"
@@ -38,18 +67,22 @@ FROM postgres:16-bookworm AS runtime
 ARG VERSION="dev"
 ARG BUILD_DATE
 ARG VCS_REF
+ARG PGVECTOR_VERSION
+ARG AGE_VERSION
 
 COPY --from=builder /usr/lib/postgresql/16/lib/vector.so /usr/lib/postgresql/16/lib/
 COPY --from=builder /usr/lib/postgresql/16/lib/age.so /usr/lib/postgresql/16/lib/
 COPY --from=builder /usr/share/postgresql/16/extension/vector* /usr/share/postgresql/16/extension/
 COPY --from=builder /usr/share/postgresql/16/extension/age* /usr/share/postgresql/16/extension/
 
-COPY init.sql /docker-entrypoint-initdb.d/init.sql
-COPY healthcheck.sh /usr/local/bin/healthcheck.sh
+COPY config/init.sql /docker-entrypoint-initdb.d/init.sql
+COPY config/healthcheck.sh /usr/local/bin/healthcheck.sh
+COPY scripts/lib/extensions.sh /usr/local/bin/extensions-lib.sh
 
 RUN chmod +x /usr/local/bin/healthcheck.sh && \
     chown postgres:postgres /docker-entrypoint-initdb.d/init.sql && \
-    chown postgres:postgres /usr/local/bin/healthcheck.sh
+    chown postgres:postgres /usr/local/bin/healthcheck.sh && \
+    chown postgres:postgres /usr/local/bin/extensions-lib.sh
 
 RUN echo "# Production PostgreSQL configuration for multiple databases" >> /usr/share/postgresql/postgresql.conf.sample && \
     echo "shared_preload_libraries = 'age'" >> /usr/share/postgresql/postgresql.conf.sample && \
@@ -90,7 +123,7 @@ ENV POSTGRES_DB=postgres \
 
 # OCI labels for ghcr.io metadata
 LABEL org.opencontainers.image.title="postgres" \
-      org.opencontainers.image.description="PostgreSQL 16 with pgvector (v0.5.1) and Apache AGE (v1.5.0) extensions" \
+      org.opencontainers.image.description="PostgreSQL 16 with pgvector (${PGVECTOR_VERSION}) and Apache AGE (${AGE_VERSION}) extensions" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}" \
@@ -99,5 +132,5 @@ LABEL org.opencontainers.image.title="postgres" \
       org.opencontainers.image.base.name="postgres:16-bookworm" \
       maintainer="kayjay-madman" \
       postgres.version="16" \
-      pgvector.version="0.5.1" \
-      age.version="1.5.0"
+      pgvector.version="${PGVECTOR_VERSION}" \
+      age.version="${AGE_VERSION}"

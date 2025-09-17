@@ -1,7 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-readonly CONTAINER_NAME="${1:-postgres-combo}"
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# shellcheck source=scripts/lib/extensions.sh
+source "${REPO_ROOT}/scripts/lib/extensions.sh"
+
+cd "$REPO_ROOT"
+
+readonly SERVICE_NAME="${1:-postgres}"
 readonly TEST_DB="${POSTGRES_DB:-postgres}"
 readonly TEST_USER="${POSTGRES_USER:-postgres}"
 
@@ -10,16 +18,27 @@ TESTS_FAILED=0
 
 pass() {
     echo "✓ $1"
-    ((TESTS_PASSED++))
+    ((TESTS_PASSED++)) || true
 }
 
 fail() {
     echo "✗ $1"
-    ((TESTS_FAILED++))
+    ((TESTS_FAILED++)) || true
 }
 
 info() {
     echo "→ $1"
+}
+
+check_dependencies() {
+    info "Checking test dependencies..."
+
+    if command -v bc >/dev/null 2>&1; then
+        pass "bc available for performance assertions"
+    else
+        fail "bc command not found; install bc to run performance checks"
+        exit 1
+    fi
 }
 
 test_environment() {
@@ -42,20 +61,28 @@ test_environment() {
 
 test_connectivity() {
     info "Testing database connectivity..."
-    
-    if docker compose exec "$CONTAINER_NAME" pg_isready -U "$TEST_USER" -d "$TEST_DB" -q; then
-        pass "Database accepting connections"
-    else
-        fail "Database not accepting connections"
-        return 1
-    fi
+
+    local retries=10
+    local delay=3
+
+    for ((i=1; i<=retries; i++)); do
+        if docker compose exec -T "$SERVICE_NAME" pg_isready -U "$TEST_USER" -d "$TEST_DB" -q; then
+            pass "Database accepting connections"
+            return 0
+        fi
+
+        sleep "$delay"
+    done
+
+    fail "Database not accepting connections"
+    return 1
 }
 
 test_security() {
     info "Testing container security..."
     
     local user_check
-    user_check=$(docker compose exec "$CONTAINER_NAME" whoami 2>/dev/null || echo "failed")
+    user_check=$(docker compose exec -T "$SERVICE_NAME" whoami 2>/dev/null || echo "failed")
     
     if [[ "$user_check" == "postgres" ]]; then
         pass "Container running as non-root user (postgres)"
@@ -64,7 +91,15 @@ test_security() {
     fi
     
     local security_opts
-    security_opts=$(docker inspect "$CONTAINER_NAME" --format='{{.HostConfig.SecurityOpt}}' 2>/dev/null || echo "[]")
+    local container_id
+    container_id=$(docker compose ps -q "$SERVICE_NAME" 2>/dev/null)
+
+    if [[ -z "$container_id" ]]; then
+        fail "Unable to locate container for security checks"
+        return 1
+    fi
+
+    security_opts=$(docker inspect "$container_id" --format='{{.HostConfig.SecurityOpt}}' 2>/dev/null || echo "[]")
     
     if [[ "$security_opts" == *"no-new-privileges:true"* ]]; then
         pass "Security option no-new-privileges enabled"
@@ -75,30 +110,21 @@ test_security() {
 
 test_extensions() {
     info "Testing extension functionality..."
-    
-    local ext_count
-    ext_count=$(docker compose exec "$CONTAINER_NAME" psql -U "$TEST_USER" -d "$TEST_DB" -t -c "SELECT COUNT(*) FROM pg_extension WHERE extname IN ('vector', 'age');" 2>/dev/null | tr -d ' ')
-    
-    if [[ "$ext_count" == "2" ]]; then
+
+    if extensions_installed; then
         pass "Both pgvector and Apache AGE extensions installed"
     else
-        fail "Extensions not properly installed (found: $ext_count/2)"
+        fail "Extensions not properly installed"
         return 1
     fi
-    
-    local vector_test
-    vector_test=$(docker compose exec "$CONTAINER_NAME" psql -U "$TEST_USER" -d "$TEST_DB" -t -c "SELECT vector_dims('[1,2,3]'::vector);" 2>/dev/null | tr -d ' ')
-    
-    if [[ "$vector_test" == "3" ]]; then
+
+    if vector_basic_check; then
         pass "pgvector operations working"
     else
         fail "pgvector operations failed"
     fi
-    
-    local age_test
-    age_test=$(docker compose exec "$CONTAINER_NAME" psql -U "$TEST_USER" -d "$TEST_DB" -t -c "SET search_path = ag_catalog, public; SELECT proname FROM pg_proc WHERE pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'ag_catalog') AND proname = 'create_graph' LIMIT 1;" 2>/dev/null | grep -v '^SET$' | tr -d ' ' | head -1)
 
-    if [[ "$age_test" == "create_graph" ]]; then
+    if age_has_create_graph; then
         pass "Apache AGE operations working"
     else
         fail "Apache AGE operations failed"
@@ -107,8 +133,8 @@ test_extensions() {
 
 test_graph_operations() {
     info "Testing graph operations..."
-    
-    if docker compose exec "$CONTAINER_NAME" psql -U "$TEST_USER" -d "$TEST_DB" -c "SET search_path = ag_catalog, public; SELECT create_graph('test_graph'); SELECT drop_graph('test_graph', true);" >/dev/null 2>&1; then
+
+    if age_graph_cycle; then
         pass "Graph operations working"
     else
         fail "Graph operations failed"
@@ -121,7 +147,10 @@ test_performance() {
     local start_time end_time duration
     start_time=$(date +%s.%N)
     
-    docker compose exec "$CONTAINER_NAME" psql -U "$TEST_USER" -d "$TEST_DB" -c "CREATE TEMPORARY TABLE perf_test (id SERIAL, embedding vector(3)); INSERT INTO perf_test (embedding) SELECT ('[' || random() || ',' || random() || ',' || random() || ']')::vector FROM generate_series(1, 1000); DROP TABLE perf_test;" >/dev/null 2>&1
+    if ! vector_performance_sample; then
+        fail "Vector operations performance run failed"
+        return 1
+    fi
     
     end_time=$(date +%s.%N)
     duration=$(echo "$end_time - $start_time" | bc -l)
@@ -136,9 +165,14 @@ test_performance() {
 main() {
     echo "=== PostgreSQL Combo Test Suite ==="
     echo
-    
+
+    check_dependencies
+
     test_environment
     test_connectivity
+
+    set_psql_cmd docker compose exec -T "$SERVICE_NAME" psql -U "$TEST_USER" -d "$TEST_DB"
+
     test_security
     test_extensions
     test_graph_operations

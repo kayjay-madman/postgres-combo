@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: ${IMAGE_NAME:-ghcr.io/kayjay-madman/postgres-combo}:${IMAGE_TAG:-latest}
+    container_name: ${CONTAINER_NAME:-postgres-combo}
+    env_file: ../.env
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  data:
+    driver: local
