@@ -31,12 +31,12 @@ jobs:
       - name: Prepare environment
         run: |
           cat <<EOF > .env
-POSTGRES_PASSWORD=ci_test_password_123
+POSTGRES_PASSWORD="$XKU5t&eYbdJ3b7E172RzGrDAFSSSgsC"
 POSTGRES_USER=postgres
 POSTGRES_DB=postgres
-POSTGRES_HOST_PORT=55432
+POSTGRES_HOST_PORT=5432
 CONTAINER_NAME=postgres-combo
-IMAGE_NAME=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+IMAGE_NAME=${REGISTRY}/${IMAGE_NAME}
 IMAGE_TAG=${IMAGE_TAG}
 EOF
 
