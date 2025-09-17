@@ -73,8 +73,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=raw,value=pgvector-${{ steps.versions.outputs.pgvector_version }}-age-${{ steps.versions.outputs.age_version }}
-            type=raw,value={{branch}}-{{date 'YYYY-MM-DD'}}-{{sha}},
-              enable={{is_default_branch}}
+            type=raw,value={{branch}}-{{date 'YYYY-MM-DD'}}-{{sha}},enable={{is_default_branch}}
 
       - name: Build and push Docker image
         id: build
