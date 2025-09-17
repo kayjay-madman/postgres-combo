@@ -4,7 +4,7 @@
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
-readonly PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+readonly PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 readonly OUTPUT_DIR="${PROJECT_ROOT}/security-reports"
 readonly VERSIONS_FILE="${PROJECT_ROOT}/build/versions.mk"
 

@@ -4,7 +4,7 @@
 .env.*.local
 
 # IDE settings
-.claude/settings.local.json
+.claude
 .serena/
 AGENTS.md
 CLAUDE.md
