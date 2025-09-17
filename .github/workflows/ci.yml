@@ -15,6 +15,7 @@ jobs:
     env:
       IMAGE_TAG: ci-${{ github.sha }}
       IMAGE_REFERENCE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-${{ github.sha }}
+      CI_TEST_POSTGRES_PASSWORD: ${{ secrets.CI_TEST_POSTGRES_PASSWORD }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -31,7 +32,7 @@ jobs:
       - name: Prepare environment
         run: |
           cat <<EOF > .env
-POSTGRES_PASSWORD="$XKU5t&eYbdJ3b7E172RzGrDAFSSSgsC"
+POSTGRES_PASSWORD=${CI_TEST_POSTGRES_PASSWORD}
 POSTGRES_USER=postgres
 POSTGRES_DB=postgres
 POSTGRES_HOST_PORT=5432
@@ -61,3 +62,4 @@ EOF
           name: trivy-reports
           path: security-reports/
           if-no-files-found: ignore
+
