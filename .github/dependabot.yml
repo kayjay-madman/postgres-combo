@@ -1,6 +1,5 @@
 version: 2
 updates:
-  # Monitor Dockerfile for base image updates
   - package-ecosystem: "docker"
     directory: "/build"
     schedule:
@@ -8,38 +7,16 @@ updates:
       day: "monday"
       time: "06:00"
     open-pull-requests-limit: 5
-    commit-message:
-      prefix: "docker"
-      include: "scope"
-    reviewers:
-      - "kayjay-madman"
     labels:
-      - "security"
       - "dependencies"
       - "docker"
-    # Group related updates together
-    groups:
-      postgres-updates:
-        patterns:
-          - "postgres*"
-        update-types:
-          - "minor"
-          - "patch"
-
-  # Monitor GitHub Actions for workflow updates (if any are added later)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "ci"
-      include: "scope"
-    reviewers:
-      - "kayjay-madman"
+    open-pull-requests-limit: 5
     labels:
-      - "security"
       - "dependencies"
       - "github-actions"
