@@ -5,7 +5,7 @@ ARG AGE_BRANCH
 ARG AGE_VERSION
 ARG AGE_COMMIT
 
-FROM postgres:16-bookworm AS builder
+FROM postgres:17-bookworm AS builder
 
 ARG PGVECTOR_VERSION
 ARG PGVECTOR_COMMIT
@@ -61,7 +61,7 @@ RUN rm -rf /tmp/age
 RUN ls -la /usr/lib/postgresql/16/lib/ | grep -E "(vector|age)" && \
     ls -la /usr/share/postgresql/16/extension/ | grep -E "(vector|age)"
 
-FROM postgres:16-bookworm AS runtime
+FROM postgres:17-bookworm AS runtime
 
 # Build arguments for metadata
 ARG VERSION="dev"
