@@ -41,9 +41,15 @@ EOT
     - name: Show logs on failure
       if: failure()
       run: |
-        docker compose -f docker-compose.yml -f docker-compose.hardened.yml logs postgres || true
+        docker compose \
+          -f deploy/docker-compose.yml \
+          -f deploy/docker-compose.hardened.yml \
+          logs postgres || true
 
     - name: Cleanup
       if: always()
       run: |
-        docker compose -f docker-compose.yml -f docker-compose.hardened.yml down -v || true
+        docker compose \
+          -f deploy/docker-compose.yml \
+          -f deploy/docker-compose.hardened.yml \
+          down -v || true

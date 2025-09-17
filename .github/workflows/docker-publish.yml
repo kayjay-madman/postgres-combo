@@ -30,7 +30,7 @@ jobs:
       shell: bash
       run: |
         set -euo pipefail
-        source versions.mk
+        source build/versions.mk
         {
           echo "pgvector_version=${PGVECTOR_VERSION}"
           echo "pgvector_commit=${PGVECTOR_COMMIT}"
